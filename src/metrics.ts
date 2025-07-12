@@ -21,7 +21,7 @@ app.get('/metrics', (req, res) => {
     });
 });
 
-export const startMetricsServer = (port: number, host = '127.0.0.1') => {
+export const startMetricsServer = (port: number, host = '0.0.0.0') => {
   return app.listen(port, host, () => {
     logger.info(`Metrics server is listening on ${host}:${port}`);
   });
