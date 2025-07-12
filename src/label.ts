@@ -1,11 +1,14 @@
 import { ComAtprotoLabelDefs } from '@atcute/client/lexicons';
 import { LabelerServer } from '@skyware/labeler';
+import path from 'node:path';
 
 import { DID, SIGNING_KEY } from './config.js';
 import { DELETE, LABELS, LABEL_LIMIT } from './constants.js';
 import logger from './logger.js';
 
-export const labelerServer = new LabelerServer({ did: DID, signingKey: SIGNING_KEY });
+const dbPath = path.join(process.cwd(), 'data', 'labels.db');
+
+export const labelerServer = new LabelerServer({ did: DID, signingKey: SIGNING_KEY, dbPath });
 
 export const label = (did: string, rkey: string) => {
   logger.info(`Received rkey: ${rkey} for ${did}`);

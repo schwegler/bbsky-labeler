@@ -1,10 +1,19 @@
 import { CommitCreateEvent, Jetstream } from '@skyware/jetstream';
 import fs from 'node:fs';
+import path from 'node:path';
 
 import { CURSOR_UPDATE_INTERVAL, DID, FIREHOSE_URL, HOST, METRICS_PORT, PORT, WANTED_COLLECTION } from './config.js';
 import { label, labelerServer } from './label.js';
 import logger from './logger.js';
 import { startMetricsServer } from './metrics.js';
+
+const DATA_DIR = path.resolve(process.cwd(), 'data');
+const CURSOR_FILE = path.join(DATA_DIR, 'cursor.txt');
+
+// Create the data directory if it doesn't exist
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
 
 let cursor = 0;
 let cursorUpdateInterval: NodeJS.Timeout;
@@ -15,13 +24,13 @@ function epochUsToDateTime(cursor: number): string {
 
 try {
   logger.info('Trying to read cursor from cursor.txt...');
-  cursor = Number(fs.readFileSync('cursor.txt', 'utf8'));
+  cursor = Number(fs.readFileSync(CURSOR_FILE, 'utf8'));
   logger.info(`Cursor found: ${cursor} (${epochUsToDateTime(cursor)})`);
 } catch (error) {
   if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
     cursor = Math.floor(Date.now() * 1000);
     logger.info(`Cursor not found in cursor.txt, setting cursor to: ${cursor} (${epochUsToDateTime(cursor)})`);
-    fs.writeFileSync('cursor.txt', cursor.toString(), 'utf8');
+    fs.writeFileSync(CURSOR_FILE, cursor.toString(), 'utf8');
   } else {
     logger.error(error);
     process.exit(1);
@@ -41,7 +50,7 @@ jetstream.on('open', () => {
   cursorUpdateInterval = setInterval(() => {
     if (jetstream.cursor) {
       logger.info(`Cursor updated to: ${jetstream.cursor} (${epochUsToDateTime(jetstream.cursor)})`);
-      fs.writeFile('cursor.txt', jetstream.cursor.toString(), (err) => {
+      fs.writeFile(CURSOR_FILE, jetstream.cursor.toString(), (err) => {
         if (err) logger.error(err);
       });
     }
@@ -79,7 +88,7 @@ jetstream.start();
 function shutdown() {
   try {
     logger.info('Shutting down gracefully...');
-    fs.writeFileSync('cursor.txt', jetstream.cursor!.toString(), 'utf8');
+    fs.writeFileSync(CURSOR_FILE, jetstream.cursor!.toString(), 'utf8');
     jetstream.close();
     labelerServer.stop();
     metricsServer.close();
